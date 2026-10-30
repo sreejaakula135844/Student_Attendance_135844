@@ -1,0 +1,173 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Attendance Management System</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #edf2ff;
+  margin: 0;
+  padding: 20px;
+}
+.container {
+  max-width: 650px;
+  margin: auto;
+  background: white;
+  padding: 22px;
+  border-radius: 14px;
+}
+h1 { color: #244c91; text-align: center; }
+input, button {
+  padding: 11px;
+  margin: 6px 0;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+input { width: 100%; border: 1px solid #aaa; }
+button {
+  border: none;
+  background: #2455a4;
+  color: white;
+  cursor: pointer;
+}
+.student {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+}
+.present { color: green; }
+.absent { color: red; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Student Attendance System</h1>
+<p><b>Project ID:</b> 135844</p>
+
+<h3>Add Student</h3>
+<input id="name" placeholder="Enter student name">
+<input id="roll" placeholder="Enter roll number">
+<button onclick="addStudent()">Add Student</button>
+
+<h3>Select Attendance Date</h3>
+<input type="date" id="date">
+
+<h3>Student Records</h3>
+<div id="records"></div>
+<h3 id="summary">Total Students: 0</h3>
+<button onclick="exportCSV()">Download Report</button>
+</div>
+
+<script>
+let students = JSON.parse(localStorage.getItem("students") || "[]");
+
+function save() {
+  localStorage.setItem("students", JSON.stringify(students));
+  display();
+}
+
+function addStudent() {
+  const name = document.getElementById("name").value.trim();
+  const roll = document.getElementById("roll").value.trim();
+
+  if (!name || !roll) {
+    alert("Please enter student name and roll number");
+    return;
+  }
+  if (students.some(s => s.roll === roll)) {
+    alert("This roll number already exists");
+    return;
+  }
+
+  students.push({name, roll, attendance: {}});
+  document.getElementById("name").value = "";
+  document.getElementById("roll").value = "";
+  save();
+}
+
+function mark(roll, status) {
+  const date = document.getElementById("date").value;
+  if (!date) {
+    alert("Select a date first");
+    return;
+  }
+  const student = students.find(s => s.roll === roll);
+  student.attendance[date] = status;
+  save();
+}
+
+function removeStudent(roll) {
+  students = students.filter(s => s.roll !== roll);
+  save();
+}
+
+function display() {
+  const date = document.getElementById("date").value;
+  const records = document.getElementById("records");
+  records.innerHTML = "";
+
+  students.forEach(s => {
+    const values = Object.values(s.attendance);
+    const total = values.length;
+    const present = values.filter(v => v === "Present").length;
+    const percent = total ? Math.round(present / total * 100) : 0;
+    const status = s.attendance[date] || "Not marked";
+
+    const div = document.createElement("div");
+    div.className = "student";
+
+    const name = document.createElement("b");
+    name.textContent = s.name + " (" + s.roll + ")";
+    div.appendChild(name);
+
+    const info = document.createElement("p");
+    info.textContent = status + " | Attendance: " + percent + "%";
+    info.className = status === "Present" ? "present" :
+                     status === "Absent" ? "absent" : "";
+    div.appendChild(info);
+
+    [["Present","Present"],["Absent","Absent"],["Delete","Delete"]]
+    .forEach(([label, action]) => {
+      const btn = document.createElement("button");
+      btn.textContent = label;
+      btn.onclick = () => action === "Delete"
+        ? removeStudent(s.roll) : mark(s.roll, action);
+      div.appendChild(btn);
+    });
+
+    records.appendChild(div);
+  });
+
+  document.getElementById("summary").textContent =
+    "Total Students: " + students.length;
+}
+
+function exportCSV() {
+  let rows = [["Name","Roll Number","Date","Status"]];
+  students.forEach(s => {
+    Object.entries(s.attendance).forEach(([date,status]) => {
+      rows.push([s.name,s.roll,date,status]);
+    });
+  });
+  const csv = rows.map(row =>
+    row.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(",")
+  ).join("\n");
+  const url = URL.createObjectURL(
+    new Blob([csv], {type:"text/csv"})
+  );
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "attendance_report.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("date").value =
+  new Date().toISOString().slice(0,10);
+document.getElementById("date").addEventListener("change", display);
+display();
+</script>
+</body>
+</html>
